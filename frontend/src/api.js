@@ -33,3 +33,14 @@ export const fetchDonors = async () => {
     return [];
   }
 };
+
+export const fetchNetworkMetrics = async () => {
+  try {
+    const response = await fetch(`${BASE_URL}/network-metrics`);
+    if (!response.ok) throw new Error("Network response was not ok");
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching network metrics:", error);
+    return { nodes: [], links: [] };
+  }
+};

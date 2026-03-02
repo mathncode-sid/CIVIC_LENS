@@ -1,25 +1,21 @@
 import { useState, useEffect } from 'react';
-import { fetchCandidates, fetchDonations, fetchDonors } from './api';
+import { fetchCandidates, fetchDonations, fetchNetworkMetrics } from './api';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import InfluenceNetwork from './InfluenceNetwork';
 
 function App() {
   const [candidates, setCandidates] = useState([]);
-  const [donors, setDonors] = useState([]);
-  const [donations, setDonations] = useState([]);
   const [chartData, setChartData] = useState([]);
+  const [fullNetworkData, setFullNetworkData] = useState({ nodes: [], links: [] });
   const [loading, setLoading] = useState(true);
-  
-  // NEW: State for the dropdown filter
   const [selectedCandidate, setSelectedCandidate] = useState('ALL');
 
   useEffect(() => {
     const loadData = async () => {
       const candidatesData = await fetchCandidates();
       const donationsData = await fetchDonations();
-      const donorsData = await fetchDonors();
+      const networkMetrics = await fetchNetworkMetrics(); // Fetching the Math!
 
-      // Chart Data Aggregation
       const financialTotals = {};
       donationsData.forEach((d) => {
         if (!financialTotals[d.candidate_id]) financialTotals[d.candidate_id] = 0;
@@ -32,30 +28,34 @@ function App() {
       })).sort((a, b) => b["Total Raised ($)"] - a["Total Raised ($)"]);
 
       setCandidates(candidatesData);
-      setDonors(donorsData);
-      setDonations(donationsData);
       setChartData(formattedChartData);
+      setFullNetworkData(networkMetrics);
       setLoading(false);
     };
     
     loadData();
   }, []);
 
-  // --- FILTERING LOGIC ---
-  // If 'ALL' is selected, show everything. Otherwise, only show the selected candidate's web.
-  const filteredCandidates = selectedCandidate === 'ALL' 
-    ? candidates 
-    : candidates.filter(c => c.candidate_id === selectedCandidate);
+  // Filter the math graph based on the dropdown
+  const getFilteredGraph = () => {
+    if (selectedCandidate === 'ALL') return fullNetworkData;
 
-  const filteredDonations = selectedCandidate === 'ALL'
-    ? donations
-    : donations.filter(d => d.candidate_id === selectedCandidate);
+    const filteredLinks = fullNetworkData.links.filter(
+      l => l.source === selectedCandidate || l.target === selectedCandidate || 
+           l.source.id === selectedCandidate || l.target.id === selectedCandidate
+    );
 
-  // Only keep donors that actually gave money to the filtered candidates
-  const connectedDonorIds = new Set(filteredDonations.map(d => d.donor_id));
-  const filteredDonors = selectedCandidate === 'ALL'
-    ? donors
-    : donors.filter(d => connectedDonorIds.has(d.donor_id));
+    const connectedNodeIds = new Set();
+    filteredLinks.forEach(l => {
+      connectedNodeIds.add(typeof l.source === 'object' ? l.source.id : l.source);
+      connectedNodeIds.add(typeof l.target === 'object' ? l.target.id : l.target);
+    });
+    connectedNodeIds.add(selectedCandidate);
+
+    const filteredNodes = fullNetworkData.nodes.filter(n => connectedNodeIds.has(n.id));
+
+    return { nodes: filteredNodes, links: filteredLinks };
+  };
 
   return (
     <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '1200px', margin: '0 auto' }}>
@@ -65,18 +65,22 @@ function App() {
         <p style={{ textAlign: 'center' }}>Initializing Simulation Grid...</p>
       ) : (
         <>
-          {/* THE NEW FILTERED INFLUENCE NETWORK */}
+          {/* THE GRAPH MATH VISUALIZER */}
           <div style={{ backgroundColor: '#f8f9fa', padding: '20px', borderRadius: '8px', marginBottom: '40px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-              <h2 style={{ margin: 0, color: '#34495e' }}>Web of Influence</h2>
-              
-              {/* THE DROPDOWN MENU */}
+              <div>
+                <h2 style={{ margin: 0, color: '#34495e' }}>Influence Clusters (Louvain Communities)</h2>
+                <p style={{ color: '#7f8c8d', fontSize: '14px', marginTop: '5px', marginBottom: 0 }}>
+                  * Nodes sharing the same color belong to the same financial community. 
+                  <br/>* Larger text indicates a higher Centrality Score (more influence).
+                </p>
+              </div>
               <select 
                 value={selectedCandidate} 
                 onChange={(e) => setSelectedCandidate(e.target.value)}
                 style={{ padding: '10px', fontSize: '16px', borderRadius: '5px', border: '1px solid #ccc' }}
               >
-                <option value="ALL">🌐 View All Candidates</option>
+                <option value="ALL">🌐 View Global Network</option>
                 {candidates.map(c => (
                   <option key={c.candidate_id} value={c.candidate_id}>
                     {c.name} ({c.party})
@@ -85,21 +89,12 @@ function App() {
               </select>
             </div>
             
-            <p style={{ color: '#7f8c8d', fontSize: '14px', marginTop: 0 }}>
-              * You can drag the names with your mouse. Candidate names are bolded blue.
-            </p>
-            
-            {/* We pass the FILTERED data down to the graph */}
-            <InfluenceNetwork 
-              candidates={filteredCandidates} 
-              donors={filteredDonors} 
-              donations={filteredDonations} 
-            />
+            <InfluenceNetwork graphData={getFilteredGraph()} />
           </div>
 
           {/* THE BAR CHART */}
           <div style={{ backgroundColor: '#f8f9fa', padding: '20px', borderRadius: '8px', marginBottom: '40px' }}>
-            <h2 style={{ marginTop: 0, color: '#34495e' }}>Campaign War Chests (Total Funds Raised)</h2>
+            <h2 style={{ marginTop: 0, color: '#34495e' }}>Campaign War Chests</h2>
             <div style={{ width: '100%', height: 400 }}>
               <ResponsiveContainer>
                 <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
