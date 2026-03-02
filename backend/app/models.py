@@ -21,6 +21,7 @@ class Donor(Base):
     home_county = Column(String(100))
     tier = Column(Integer)
 
+
 class Candidate(Base):
     __tablename__ = "candidates"
     
