@@ -1,115 +1,103 @@
-import { useState, useEffect } from 'react';
-import { fetchCandidates, fetchDonations, fetchNetworkMetrics } from './api';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import InfluenceNetwork from './InfluenceNetwork';
+import React, { useState, useEffect } from 'react';
+import MapVisualization from './components/MapVisualization';
+import NetworkGraph from './components/NetworkGraph';
+import FundingTrends from './components/FundingTrends'; // Module 1 Restored
 
 function App() {
+  const [selectedCandidate, setSelectedCandidate] = useState("all");
   const [candidates, setCandidates] = useState([]);
-  const [chartData, setChartData] = useState([]);
-  const [fullNetworkData, setFullNetworkData] = useState({ nodes: [], links: [] });
-  const [loading, setLoading] = useState(true);
-  const [selectedCandidate, setSelectedCandidate] = useState('ALL');
 
   useEffect(() => {
-    const loadData = async () => {
-      const candidatesData = await fetchCandidates();
-      const donationsData = await fetchDonations();
-      const networkMetrics = await fetchNetworkMetrics(); // Fetching the Math!
-
-      const financialTotals = {};
-      donationsData.forEach((d) => {
-        if (!financialTotals[d.candidate_id]) financialTotals[d.candidate_id] = 0;
-        financialTotals[d.candidate_id] += d.amount;
-      });
-
-      const formattedChartData = candidatesData.map((c) => ({
-        name: c.name,
-        "Total Raised ($)": financialTotals[c.candidate_id] || 0,
-      })).sort((a, b) => b["Total Raised ($)"] - a["Total Raised ($)"]);
-
-      setCandidates(candidatesData);
-      setChartData(formattedChartData);
-      setFullNetworkData(networkMetrics);
-      setLoading(false);
-    };
-    
-    loadData();
+    fetch('http://127.0.0.1:8000/api/candidates')
+      .then(res => res.json())
+      .then(data => setCandidates(data))
+      .catch(err => console.error("Error fetching candidates:", err));
   }, []);
 
-  // Filter the math graph based on the dropdown
-  const getFilteredGraph = () => {
-    if (selectedCandidate === 'ALL') return fullNetworkData;
-
-    const filteredLinks = fullNetworkData.links.filter(
-      l => l.source === selectedCandidate || l.target === selectedCandidate || 
-           l.source.id === selectedCandidate || l.target.id === selectedCandidate
-    );
-
-    const connectedNodeIds = new Set();
-    filteredLinks.forEach(l => {
-      connectedNodeIds.add(typeof l.source === 'object' ? l.source.id : l.source);
-      connectedNodeIds.add(typeof l.target === 'object' ? l.target.id : l.target);
-    });
-    connectedNodeIds.add(selectedCandidate);
-
-    const filteredNodes = fullNetworkData.nodes.filter(n => connectedNodeIds.has(n.id));
-
-    return { nodes: filteredNodes, links: filteredLinks };
-  };
-
   return (
-    <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '1200px', margin: '0 auto' }}>
-      <h1 style={{ textAlign: 'center', color: '#2c3e50' }}>🏛️ Civic Lens Laboratory</h1>
-      
-      {loading ? (
-        <p style={{ textAlign: 'center' }}>Initializing Simulation Grid...</p>
-      ) : (
-        <>
-          {/* THE GRAPH MATH VISUALIZER */}
-          <div style={{ backgroundColor: '#f8f9fa', padding: '20px', borderRadius: '8px', marginBottom: '40px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-              <div>
-                <h2 style={{ margin: 0, color: '#34495e' }}>Influence Clusters (Louvain Communities)</h2>
-                <p style={{ color: '#7f8c8d', fontSize: '14px', marginTop: '5px', marginBottom: 0 }}>
-                  * Nodes sharing the same color belong to the same financial community. 
-                  <br/>* Larger text indicates a higher Centrality Score (more influence).
-                </p>
-              </div>
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-blue-100">
+      <header className="border-b border-slate-200 bg-white p-6 shadow-sm sticky top-0 z-[2000]">
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-800 tracking-tight">
+              CIVIC LENS <span className="text-blue-600 font-light">LABORATORY</span>
+            </h1>
+            <p className="text-slate-500 text-xs uppercase tracking-widest mt-1 font-semibold">
+              Advanced Financial Intelligence Suite
+            </p>
+          </div>
+          <div className="px-4 py-2 border border-blue-100 rounded-full bg-blue-50 text-[10px]">
+            <span className="text-blue-700 font-bold">SYSTEM STATUS:</span> <span className="text-blue-600">OPERATIONAL</span>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto p-8 space-y-16">
+        
+        {/* Module 1: Funding Trends */}
+        <section className="space-y-6">
+          <div className="border-l-4 border-blue-600 pl-4">
+            <h2 className="text-2xl font-bold text-slate-800">Module 1: Funding Trends</h2>
+            <p className="text-slate-500 text-sm italic">Top war chests calculated from network donation data.</p>
+          </div>
+          <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-8">
+            <FundingTrends />
+          </div>
+        </section>
+
+        {/* Module 2: Network Intelligence Engine */}
+        <section className="space-y-6">
+          <div className="border-l-4 border-blue-600 pl-4 flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl font-bold text-slate-800">Module 2: Network Intelligence Engine</h2>
+              <p className="text-slate-500 text-sm italic">Filtering financial nodes and edge-weight relationships.</p>
+            </div>
+            
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] font-bold text-slate-400 uppercase">Focus Candidate</label>
               <select 
-                value={selectedCandidate} 
+                value={selectedCandidate}
                 onChange={(e) => setSelectedCandidate(e.target.value)}
-                style={{ padding: '10px', fontSize: '16px', borderRadius: '5px', border: '1px solid #ccc' }}
+                className="bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm shadow-sm focus:ring-2 focus:ring-blue-500 outline-none"
               >
-                <option value="ALL">🌐 View Global Network</option>
+                <option value="all">Display Full Network</option>
                 {candidates.map(c => (
-                  <option key={c.candidate_id} value={c.candidate_id}>
-                    {c.name} ({c.party})
-                  </option>
+                  <option key={c.candidate_id} value={c.candidate_id}>{c.full_name || c.name}</option>
                 ))}
               </select>
             </div>
-            
-            <InfluenceNetwork graphData={getFilteredGraph()} />
           </div>
 
-          {/* THE BAR CHART */}
-          <div style={{ backgroundColor: '#f8f9fa', padding: '20px', borderRadius: '8px', marginBottom: '40px' }}>
-            <h2 style={{ marginTop: 0, color: '#34495e' }}>Campaign War Chests</h2>
-            <div style={{ width: '100%', height: 400 }}>
-              <ResponsiveContainer>
-                <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip cursor={{ fill: '#eee' }} />
-                  <Legend />
-                  <Bar dataKey="Total Raised ($)" fill="#27ae60" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="md:col-span-1 space-y-4">
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                <h4 className="font-bold text-blue-800 text-xs uppercase mb-2">Visual Weights</h4>
+                <p className="text-[11px] text-blue-900 leading-relaxed">
+                  <strong>Edge Thickness:</strong> Scaled logarithmically. Thicker lines represent high-value transfers.
+                </p>
+                <p className="text-[11px] text-blue-900 leading-relaxed mt-2">
+                  <strong>Edge Color:</strong> Stronger relationships fade from gray to deep blue.
+                </p>
+              </div>
+            </div>
+
+            <div className="md:col-span-3 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden relative">
+              <NetworkGraph targetCandidateId={selectedCandidate} />
             </div>
           </div>
-        </>
-      )}
+        </section>
+
+        {/* Module 3: Geographic Influence Engine */}
+        <section className="space-y-6">
+          <div className="border-l-4 border-blue-600 pl-4">
+            <h2 className="text-2xl font-bold text-slate-800">Module 3: Geographic Influence Engine</h2>
+          </div>
+          <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+            <MapVisualization />
+          </div>
+        </section>
+
+      </main>
     </div>
   );
 }
