@@ -7,6 +7,7 @@ import FundingTrends from './components/FundingTrends';
 import AIExplainer from './components/AIExplainer';
 import DashboardHome from './components/DashboardHome';
 import DataIntake from './components/DataIntake';
+import PolicySimulator from './components/PolicySimulator';
 
 //  extract the Header into a component so we can use the location router hook
 const TopHeader = () => {
@@ -133,16 +134,14 @@ function App() {
               </section>
             } />
 
-            {/* Module 4: Policy Simulator Placeholder */}
+            {/* Module 4: Policy Simulator */}
             <Route path="/module-4" element={
               <section className="space-y-6">
-                <div className="border-l-4 border-blue-600 pl-4">
+                <div className="border-l-4 border-rose-600 pl-4">
                   <h2 className="text-2xl font-bold text-slate-800">Module 4: Policy Simulator</h2>
-                  <p className="text-slate-500 text-sm italic">Regulatory Impact Engine.</p>
+                  <p className="text-slate-500 text-sm italic">Test hypothetical regulations and observe their impact on the power map.</p>
                 </div>
-                <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-10 text-center">
-                  <p className="text-slate-500">The Regulatory Impact Engine is currently under active development.</p>
-                </div>
+                <PolicySimulator />
               </section>
             } />
 
